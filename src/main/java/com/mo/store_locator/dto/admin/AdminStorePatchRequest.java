@@ -26,6 +26,10 @@ public class AdminStorePatchRequest {
 
     @Pattern(regexp = ".*\\S.*", message = "status must not be blank")
     @Size(max = 50)
+    @Pattern(
+            regexp = AdminStoreValidationPatterns.STATUS,
+            message = "status must be one of: active, inactive"
+    )
     private String status;
 
     @Valid

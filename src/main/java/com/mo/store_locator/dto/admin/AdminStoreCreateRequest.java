@@ -26,10 +26,18 @@ public class AdminStoreCreateRequest {
 
     @NotBlank
     @Size(max = 255)
+    @Pattern(
+            regexp = AdminStoreValidationPatterns.STORE_TYPE,
+            message = "storeType must be one of: Flagship, Urban, Neighborhood"
+    )
     private String storeType;
 
     @NotBlank
     @Size(max = 50)
+    @Pattern(
+            regexp = AdminStoreValidationPatterns.STATUS,
+            message = "status must be one of: active, inactive"
+    )
     private String status;
 
     @DecimalMin(value = "-90.0")

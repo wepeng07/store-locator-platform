@@ -115,6 +115,30 @@ class StoreLocatorApplicationTests {
 	}
 
 	@Test
+	void adminListStoresRejectsInvalidPage() throws Exception {
+		mockMvc.perform(get("/api/admin/stores")
+						.header(HttpHeaders.AUTHORIZATION, adminToken)
+						.param("page", "-1"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message").value("page: must be greater than or equal to 0"))
+				.andExpect(jsonPath("$.path").value("/api/admin/stores"));
+	}
+
+	@Test
+	void adminListStoresRejectsOversizedPageSize() throws Exception {
+		mockMvc.perform(get("/api/admin/stores")
+						.header(HttpHeaders.AUTHORIZATION, adminToken)
+						.param("size", "101"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message").value("size: must be less than or equal to 100"))
+				.andExpect(jsonPath("$.path").value("/api/admin/stores"));
+	}
+
+	@Test
 	void adminGetStoreReturnsBusinessStoreDetails() throws Exception {
 		mockMvc.perform(get("/api/admin/stores/S002")
 						.header(HttpHeaders.AUTHORIZATION, adminToken))
@@ -210,7 +234,7 @@ class StoreLocatorApplicationTests {
 				{
 				  "storeId": "S0050",
 				  "name": "Unknown Store",
-				  "storeType": "Test",
+				  "storeType": "Urban",
 				  "status": "ACTIVE",
 				  "address": {
 				    "street": "999 Unknown Road",
@@ -239,6 +263,90 @@ class StoreLocatorApplicationTests {
 						.content(requestBody))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.message").value("Unable to geocode store address"));
+	}
+
+	@Test
+	void adminCreateStoreRejectsInvalidStoreType() throws Exception {
+		String requestBody = """
+				{
+				  "storeId": "S0051",
+				  "name": "Invalid Store Type",
+				  "storeType": "Mall",
+				  "status": "ACTIVE",
+				  "latitude": 42.3601,
+				  "longitude": -71.0589,
+				  "address": {
+				    "street": "123 Main St",
+				    "city": "Boston",
+				    "state": "MA",
+				    "postalCode": "02108",
+				    "country": "USA"
+				  },
+				  "phone": "+1-617-555-0101",
+				  "services": "pickup",
+				  "hours": {
+				    "mon": "09:00-18:00",
+				    "tue": "09:00-18:00",
+				    "wed": "09:00-18:00",
+				    "thu": "09:00-18:00",
+				    "fri": "09:00-18:00",
+				    "sat": "10:00-16:00",
+				    "sun": "Closed"
+				  }
+				}
+				""";
+
+		mockMvc.perform(post("/api/admin/stores")
+						.header(HttpHeaders.AUTHORIZATION, adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message").value("storeType: storeType must be one of: Flagship, Urban, Neighborhood"))
+				.andExpect(jsonPath("$.path").value("/api/admin/stores"));
+	}
+
+	@Test
+	void adminCreateStoreRejectsInvalidHoursFormat() throws Exception {
+		String requestBody = """
+				{
+				  "storeId": "S0052",
+				  "name": "Invalid Hours Store",
+				  "storeType": "Urban",
+				  "status": "ACTIVE",
+				  "latitude": 42.3601,
+				  "longitude": -71.0589,
+				  "address": {
+				    "street": "123 Main St",
+				    "city": "Boston",
+				    "state": "MA",
+				    "postalCode": "02108",
+				    "country": "USA"
+				  },
+				  "phone": "+1-617-555-0101",
+				  "services": "pickup",
+				  "hours": {
+				    "mon": "9am-5pm",
+				    "tue": "09:00-18:00",
+				    "wed": "09:00-18:00",
+				    "thu": "09:00-18:00",
+				    "fri": "09:00-18:00",
+				    "sat": "10:00-16:00",
+				    "sun": "Closed"
+				  }
+				}
+				""";
+
+		mockMvc.perform(post("/api/admin/stores")
+						.header(HttpHeaders.AUTHORIZATION, adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message").value("hours.mon: hours.mon must be 'Closed' or formatted as HH:mm-HH:mm"))
+				.andExpect(jsonPath("$.path").value("/api/admin/stores"));
 	}
 
 	@Test
@@ -278,6 +386,59 @@ class StoreLocatorApplicationTests {
 						.content(requestBody))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.message").value("Field 'latitude' is not allowed"));
+	}
+
+	@Test
+	void adminPatchStoreRejectsEmptyBody() throws Exception {
+		mockMvc.perform(patch("/api/admin/stores/S001")
+						.header(HttpHeaders.AUTHORIZATION, adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message").value("At least one updatable field must be provided"))
+				.andExpect(jsonPath("$.path").value("/api/admin/stores/S001"));
+	}
+
+	@Test
+	void adminPatchStoreRejectsInvalidStatus() throws Exception {
+		String requestBody = """
+				{
+				  "status": "paused"
+				}
+				""";
+
+		mockMvc.perform(patch("/api/admin/stores/S001")
+						.header(HttpHeaders.AUTHORIZATION, adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message").value("status: status must be one of: active, inactive"))
+				.andExpect(jsonPath("$.path").value("/api/admin/stores/S001"));
+	}
+
+	@Test
+	void adminPatchStoreRejectsInvalidHoursFormat() throws Exception {
+		String requestBody = """
+				{
+				  "hours": {
+				    "mon": "9am-5pm"
+				  }
+				}
+				""";
+
+		mockMvc.perform(patch("/api/admin/stores/S001")
+						.header(HttpHeaders.AUTHORIZATION, adminToken)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.status").value(400))
+				.andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message").value("hours.mon: hours.mon must be 'Closed' or formatted as HH:mm-HH:mm"))
+				.andExpect(jsonPath("$.path").value("/api/admin/stores/S001"));
 	}
 
 	@Test

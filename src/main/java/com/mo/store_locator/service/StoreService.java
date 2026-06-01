@@ -6,7 +6,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class StoreService {
@@ -47,7 +51,14 @@ public class StoreService {
         return stores;
     }
 
-    public List<Store> searchStoresByCoordinates(Double latitude, Double longitude, Double radiusMiles, Integer limit) {
+    public List<Store> searchStoresByCoordinates(
+            Double latitude,
+            Double longitude,
+            Double radiusMiles,
+            Integer limit,
+            List<String> storeTypes,
+            List<String> services
+    ) {
         if (latitude == null || longitude == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -80,8 +91,13 @@ public class StoreService {
                 boundingBox.minLongitude(),
                 boundingBox.maxLongitude()
         );
-        List<Store> stores = distanceService.filterSortAndLimitByDistance(
+        List<Store> filteredCandidates = filterByStoreTypesAndServices(
                 candidates,
+                normalizeFilters(storeTypes),
+                normalizeFilters(services)
+        );
+        List<Store> stores = distanceService.filterSortAndLimitByDistance(
+                filteredCandidates,
                 latitude,
                 longitude,
                 searchRadiusMiles,
@@ -89,6 +105,40 @@ public class StoreService {
         );
 
         return stores;
+    }
+
+    private List<String> normalizeFilters(List<String> filters) {
+        if (filters == null) {
+            return List.of();
+        }
+
+        return filters.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(filter -> !filter.isEmpty())
+                .toList();
+    }
+
+    private List<Store> filterByStoreTypesAndServices(
+            List<Store> stores,
+            List<String> storeTypes,
+            List<String> services
+    ) {
+        return stores.stream()
+                .filter(store -> storeTypes.isEmpty() || storeTypes.contains(store.getStoreType()))
+                .filter(store -> services.isEmpty() || storeServices(store).containsAll(services))
+                .toList();
+    }
+
+    private Set<String> storeServices(Store store) {
+        if (store.getServices() == null || store.getServices().isBlank()) {
+            return Set.of();
+        }
+
+        return Arrays.stream(store.getServices().split("\\|"))
+                .map(String::trim)
+                .filter(service -> !service.isEmpty())
+                .collect(Collectors.toSet());
     }
 
     private void validateCoordinates(double latitude, double longitude) {

@@ -135,6 +135,78 @@ class StoreLocatorApplicationTests {
 	}
 
 	@Test
+	void searchStoresByCoordinatesFiltersByOneStoreType() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("latitude", "42.3601")
+						.param("longitude", "-71.0589")
+						.param("radiusMiles", "10")
+						.param("storeTypes", "Flagship"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S001"));
+	}
+
+	@Test
+	void searchStoresByCoordinatesFiltersByMultipleStoreTypesWithOrLogic() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("latitude", "42.3601")
+						.param("longitude", "-71.0589")
+						.param("radiusMiles", "10")
+						.param("storeTypes", "Flagship", "Neighborhood"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(2))
+				.andExpect(jsonPath("$[0].storeId").value("S001"))
+				.andExpect(jsonPath("$[1].storeId").value("S003"));
+	}
+
+	@Test
+	void searchStoresByCoordinatesFiltersByMultipleServicesWithAndLogic() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("latitude", "42.3601")
+						.param("longitude", "-71.0589")
+						.param("radiusMiles", "10")
+						.param("services", "returns", "repairs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S003"));
+	}
+
+	@Test
+	void searchStoresByCoordinatesMatchesServiceFullTokensOnly() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("latitude", "42.3601")
+						.param("longitude", "-71.0589")
+						.param("radiusMiles", "10")
+						.param("services", "pick"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(0));
+	}
+
+	@Test
+	void searchStoresByCoordinatesAppliesFiltersBeforeLimit() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("latitude", "42.3601")
+						.param("longitude", "-71.0589")
+						.param("radiusMiles", "10")
+						.param("limit", "1")
+						.param("storeTypes", "Neighborhood"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S003"));
+	}
+
+	@Test
+	void searchStoresByCoordinatesReturnsEmptyListWhenNoFiltersMatch() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("latitude", "42.3601")
+						.param("longitude", "-71.0589")
+						.param("radiusMiles", "10")
+						.param("services", "delivery"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(0));
+	}
+
+	@Test
 	void searchStoresByCoordinatesReturnsEmptyListWhenNoStoresWithinRadius() throws Exception {
 		mockMvc.perform(get("/stores/search")
 						.param("latitude", "10.0")

@@ -36,12 +36,14 @@ public class StoreController {
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double radiusMiles,
-            @RequestParam(required = false) Integer limit
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) List<String> storeTypes,
+            @RequestParam(required = false) List<String> services
     ) {
         if (city != null) {
             return storeService.searchStoresByCity(city);
         }
 
-        return storeService.searchStoresByCoordinates(latitude, longitude, radiusMiles, limit);
+        return storeService.searchStoresByCoordinates(latitude, longitude, radiusMiles, limit, storeTypes, services);
     }
 }

@@ -20,10 +20,12 @@ public class StoreService {
 
     private final StoreRepository storeRepository;
     private final DistanceService distanceService;
+    private final GeocodingService geocodingService;
 
-    public StoreService(StoreRepository storeRepository, DistanceService distanceService) {
+    public StoreService(StoreRepository storeRepository, DistanceService distanceService, GeocodingService geocodingService) {
         this.storeRepository = storeRepository;
         this.distanceService = distanceService;
+        this.geocodingService = geocodingService;
     }
 
     public List<Store> getAllStores() {
@@ -49,6 +51,66 @@ public class StoreService {
         }
 
         return stores;
+    }
+
+    public List<Store> searchStoresByPostalCode(
+            String postalCode,
+            List<String> storeTypes,
+            List<String> services
+    ) {
+        String normalizedPostalCode = postalCode.trim();
+        if (normalizedPostalCode.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "postalCode must not be blank"
+            );
+        }
+
+        List<Store> stores = filterByStoreTypesAndServices(
+                storeRepository.findByAddressPostalCodeIgnoreCaseOrderByIdAsc(normalizedPostalCode),
+                normalizeFilters(storeTypes),
+                normalizeFilters(services)
+        );
+
+        if (stores.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "No stores found for postalCode " + postalCode
+            );
+        }
+
+        return stores;
+    }
+
+    public List<Store> searchStoresByAddress(
+            String address,
+            Double radiusMiles,
+            Integer limit,
+            List<String> storeTypes,
+            List<String> services
+    ) {
+        String normalizedAddress = address.trim();
+        if (normalizedAddress.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "address must not be blank"
+            );
+        }
+
+        GeoCoordinates coordinates = geocodingService.geocode(normalizedAddress)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Unable to geocode address"
+                ));
+
+        return searchStoresByCoordinates(
+                coordinates.latitude(),
+                coordinates.longitude(),
+                radiusMiles,
+                limit,
+                storeTypes,
+                services
+        );
     }
 
     public List<Store> searchStoresByCoordinates(

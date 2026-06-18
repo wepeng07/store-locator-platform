@@ -15,6 +15,8 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
     List<Store> findByAddressCityIgnoreCaseOrderByIdAsc(String addressCity);
 
+    List<Store> findByAddressPostalCodeIgnoreCaseOrderByIdAsc(String addressPostalCode);
+
     @Query("""
             select store from Store store
             where store.latitude between :minLatitude and :maxLatitude

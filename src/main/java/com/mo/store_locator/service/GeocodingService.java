@@ -6,4 +6,6 @@ import java.util.Optional;
 
 public interface GeocodingService {
     Optional<GeoCoordinates> geocode(AdminStoreAddressRequest addressRequest);
+
+    Optional<GeoCoordinates> geocode(String address);
 }

@@ -87,6 +87,82 @@ class StoreLocatorApplicationTests {
 	}
 
 	@Test
+	void searchStoresByPostalCodeReturnsMatchingStores() throws Exception {
+		mockMvc.perform(get("/stores/search").param("postalCode", "02108"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S001"))
+				.andExpect(jsonPath("$[0].addressPostalCode").value("02108"));
+	}
+
+	@Test
+	void searchStoresByPostalCodeTrimsInput() throws Exception {
+		mockMvc.perform(get("/stores/search").param("postalCode", " 02139 "))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S003"));
+	}
+
+	@Test
+	void searchStoresByPostalCodeAppliesStoreTypeAndServiceFilters() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("postalCode", "02108")
+						.param("storeTypes", "Flagship")
+						.param("services", "pickup"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S001"));
+	}
+
+	@Test
+	void searchStoresByPostalCodeReturnsNotFoundWhenNoStoresMatch() throws Exception {
+		mockMvc.perform(get("/stores/search").param("postalCode", "99999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("No stores found for postalCode 99999"));
+	}
+
+	@Test
+	void searchStoresByAddressUsesGeocodingAndReturnsNearbyStores() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("address", "123 Main St, Boston, MA 02108 USA")
+						.param("radiusMiles", "1"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S001"));
+	}
+
+	@Test
+	void searchStoresByAddressAppliesLimitAndFilters() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("address", "123 Main St Boston MA 02108 USA")
+						.param("radiusMiles", "10")
+						.param("limit", "1")
+						.param("storeTypes", "Neighborhood")
+						.param("services", "returns"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S003"));
+	}
+
+	@Test
+	void searchStoresByAddressReturnsBadRequestWhenGeocodingFails() throws Exception {
+		mockMvc.perform(get("/stores/search").param("address", "Unknown Address"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("Unable to geocode address"));
+	}
+
+	@Test
+	void searchStoresByAddressTakesPrecedenceOverCity() throws Exception {
+		mockMvc.perform(get("/stores/search")
+						.param("address", "123 Main St Boston MA 02108 USA")
+						.param("city", "New York")
+						.param("radiusMiles", "1"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].storeId").value("S001"));
+	}
+
+	@Test
 	void searchStoresByCoordinatesReturnsMatchingStores() throws Exception {
 		mockMvc.perform(get("/stores/search")
 						.param("latitude", "42.3601")

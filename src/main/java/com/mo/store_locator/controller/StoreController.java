@@ -32,6 +32,8 @@ public class StoreController {
 
     @GetMapping("/stores/search")
     public List<Store> searchStores(
+            @RequestParam(required = false) String address,
+            @RequestParam(required = false) String postalCode,
             @RequestParam(required = false) String city,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
@@ -40,6 +42,14 @@ public class StoreController {
             @RequestParam(required = false) List<String> storeTypes,
             @RequestParam(required = false) List<String> services
     ) {
+        if (address != null) {
+            return storeService.searchStoresByAddress(address, radiusMiles, limit, storeTypes, services);
+        }
+
+        if (postalCode != null) {
+            return storeService.searchStoresByPostalCode(postalCode, storeTypes, services);
+        }
+
         if (city != null) {
             return storeService.searchStoresByCity(city);
         }
